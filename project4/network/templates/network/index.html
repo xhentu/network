@@ -1,0 +1,13 @@
+{% extends "network/layout.html" %}
+{% load static %}
+
+{% block body %}
+<div class="container mt-3">
+    <h3>Create a New Post</h3>
+    <div id="post-form-container"></div> <!-- This is where the React component will be rendered -->
+</div>
+{% endblock %}
+
+{% block script %}
+    <script type="text/babel" src="{% static 'network/app.js' %}"></script>
+{% endblock %}
