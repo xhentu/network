@@ -81,20 +81,7 @@ def posts(request):
             "timestamp": post.timestamp,
             "like_count": post.likes.count()
         } for post in posts], safe=False)
-
-@login_required
-@csrf_exempt
-def like_post(request, post_id):
-    if request.method == "POST":
-        post = get_object_or_404(Post, id=post_id)
-        if request.user in post.likes.all():
-            post.likes.remove(request.user)
-            return JsonResponse({"message": "Like removed."}, status=200)
-        else:
-            post.likes.add(request.user)
-            return JsonResponse({"message": "Like added."}, status=201)
-    return JsonResponse({"error": "POST request required."}, status=400)
-
+    
 @login_required
 def profile(request, username):
     user = get_object_or_404(User, username=username)
@@ -113,6 +100,19 @@ def profile(request, username):
         "followers_count": user.followers.count(),
         "following_count": user.following.count()
     })
+
+@login_required
+@csrf_exempt
+def like_post(request, post_id):
+    if request.method == "POST":
+        post = get_object_or_404(Post, id=post_id)
+        if request.user in post.likes.all():
+            post.likes.remove(request.user)
+            return JsonResponse({"message": "Like removed."}, status=200)
+        else:
+            post.likes.add(request.user)
+            return JsonResponse({"message": "Like added."}, status=201)
+    return JsonResponse({"error": "POST request required."}, status=400)
 
 @login_required
 @csrf_exempt

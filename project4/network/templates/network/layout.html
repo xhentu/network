@@ -12,22 +12,28 @@
         {% endblock %}
     </head>
     <body>
-        <nav class="navbar navbar-expand-lg navbar-light bg-light m-2 p-2">
-            <a class="navbar-brand" href="#" style="color:blue">Network</a>
+        <nav class="navbar navbar-expand-lg navbar-dark px-4 py-2 bg-success text-white">
+            <a class="navbar-brand" href="#">Network</a>
           
             <div class="collapse navbar-collapse" id="navbarNav">
               <ul class="navbar-nav mr-auto">
                 {% if user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link" href="#"><strong>{{ user.username }}</strong></a>
+                        <a class="profile-link nav-link" id="profileName" data-username="{{ user.username }}">
+                            <strong>{{ user.username }}</strong>
+                        </a>
                     </li>
                 {% endif %}
-                <li class="nav-item">
-                  <a class="nav-link" href="{% url 'index' %}">All Posts</a>
-                </li>
+
                 {% if user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Following</a>
+                        <a class="nav-link" href="{% url 'index' %}">All Posts</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="newPost">New Post</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="following">Following</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'logout' %}">Log Out</a>
