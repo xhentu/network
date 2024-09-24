@@ -11,25 +11,29 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchingPosts();
 });
 
-
 function fetchingPosts() {
     const mainContent = document.getElementById('body');
+    
     // Fetch '/posts' route with 'GET' method
     fetch('/posts', {
         method: 'GET'
     })
-    // Phrase json data into posts
+    // Parse json data
     .then(response => response.json())
-    // Then console.log post and append to HTML
-    .then(posts => {
-        console.log("Received GET response (posts):", posts); 
-        // Creating main post Container and append by repeatly calling function using forEach
+    // Extract the posts array from the JSON object
+    .then(data => {
+        console.log("Received GET response (posts):", data.posts); 
+        
+        // Creating main post Container and append by repeatedly calling function using forEach
         const postContainer = document.createElement('div');
         postContainer.classList = "m-3 p-2";
-        posts.forEach(post => {
-        appendPost(post, postContainer); // Append each post
+
+        // Loop through the posts array and append each post
+        data.posts.forEach(post => {
+            appendPost(post, postContainer); // Append each post
         });
-        // Then append that post Container to body div
+        
+        // Append the postContainer to the main content div
         mainContent.insertAdjacentElement('afterbegin', postContainer); // Insert posts after form
     })
     .catch(error => console.error('Error:', error));
@@ -45,7 +49,6 @@ function appendPost(post, container = null) {
         minute: '2-digit'
     });
 
-    // Determine the heart icon based on the post's liked status
     const likeIcon = post.is_liked ? '💔' : '❤️';
 
     const postHtml = `
@@ -53,6 +56,7 @@ function appendPost(post, container = null) {
             <div class="card-body">
                 <h5 class="card-title post-username" data-username="${post.user}">
                     <strong>${post.user}</strong>
+                    ${post.is_owner ? `<span class="edit-btn" data-post-id="${post.id}" style="float:right; cursor:pointer;">✏️</span>` : ''}
                 </h5>
                 <p class="card-text">${post.content}</p>
                 <p class="card-text">
@@ -81,6 +85,52 @@ function appendPost(post, container = null) {
 
     // Add the click event listener for the like button
     postDiv.querySelector('.like-btn').addEventListener('click', toggleLike);
+
+    // Add the click event listener for the edit button, if present
+    const editBtn = postDiv.querySelector('.edit-btn');
+    if (editBtn) {
+        editBtn.addEventListener('click', editPost);
+    }
+}
+
+function editPost(event) {
+    // Ensure the event is targeting the correct element (the span with data-post-id)
+    const targetElement = event.target.closest('.edit-btn');  // Find the nearest element with class 'edit-btn'
+
+    if (!targetElement) {
+        console.error("Edit button element not found.");
+        return;
+    }
+
+    const postId = targetElement.getAttribute('data-post-id');
+    const newContent = prompt("Edit your post:");
+
+    if (newContent) {
+        fetch(`/edit_post/${postId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')  // Pass the CSRF token
+            },
+            body: `content=${encodeURIComponent(newContent)}`  // Send the updated content
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.message) {
+                console.log(data.message);
+                // Update the post content on the page
+                targetElement.closest('.card-body').querySelector('.card-text').innerText = newContent;
+            }
+        })
+        .catch(error => {
+            console.error('Error editing post:', error);
+        });
+    }
 }
 
 function toggleLike(event) {
@@ -135,8 +185,8 @@ function showProfile(username) {
     })
     .then(response => response.json())
     .then(profile => {
-        console.log("Received profile data:", profile); // Log the profile data
-        
+        console.log("Received profile data:", profile);
+
         // Create profile header
         const profileHtml = `
             <div class="profile-header card mb-3">
@@ -145,9 +195,6 @@ function showProfile(username) {
                     <p>Email: ${profile.user.email}</p>
                     <p>Followers: ${profile.followers_count}</p>
                     <p>Following: ${profile.following_count}</p>
-                    <button id="follow-button" class="btn btn-${profile.is_following ? 'danger' : 'success'}">
-                        ${profile.is_following ? 'Unfollow' : 'Follow'}
-                    </button>
                 </div>
             </div>
         `;
@@ -155,20 +202,32 @@ function showProfile(username) {
         const profileContainer = document.createElement('div');
         profileContainer.innerHTML = profileHtml;
 
+        // Only show the follow/unfollow button if the profile is not the current user's
+        if (profile.user.username !== profile.current_user) {  
+            const followButtonHtml = `
+                <button id="follow-button" class="btn btn-${profile.is_following ? 'danger' : 'success'}">
+                    ${profile.is_following ? 'Unfollow' : 'Follow'}
+                </button>
+            `;
+            profileContainer.querySelector('.card-body').insertAdjacentHTML('beforeend', followButtonHtml);
+
+            // Safely attach the event listener to the follow button
+            const followButton = document.getElementById('follow-button');
+            if (followButton) {  // Check if the button exists before adding an event listener
+                followButton.addEventListener('click', () => {
+                    toggleFollow(username);
+                });
+            }
+        }
+
         // Add user's posts to profile page
         profile.posts.forEach(post => {
             post.user = profile.user.username;
-            appendPost(post, profileContainer);
+            appendPost(post, profileContainer); // Use the existing appendPost function
         });
 
         // Insert the profile data into the main content area
         document.getElementById('body').appendChild(profileContainer);
-
-        // Add event listener to the follow/unfollow button
-        const followButton = document.getElementById('follow-button');
-        followButton.addEventListener('click', function() {
-            toggleFollow(username);
-        });
     })
     .catch(error => console.error('Error loading profile:', error));
 }
@@ -261,10 +320,36 @@ function getCookie(name) {
     return cookieValue;
 }
 
-// Post editing needed
-// Like function needed
+function showFollowing() {
+    // Clear previous content
+    document.getElementById('body').innerHTML = '';
+
+    // Fetch following posts
+    fetch('/following', {
+        method: 'GET'
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log("Received following posts:", data.posts);
+
+        // Create a container for posts
+        const postContainer = document.createElement('div');
+        postContainer.classList = "m-3 p-2";
+
+        // Loop through the posts and append them to the container
+        data.posts.forEach(post => {
+            appendPost(post, postContainer);  // Use the existing appendPost function
+        });
+
+        // Append the container to the body
+        document.getElementById('body').appendChild(postContainer);
+    })
+    .catch(error => console.error('Error loading following posts:', error));
+}
+
 // Following user's posts view needed
 // Post animations needed
 // Detail css needed
-// Revision needed
 // Message alert needed
+// URL for user to go back and forth is needed
+// Revision needed
