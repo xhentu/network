@@ -11,7 +11,6 @@ import json
 def index(request):
     return render(request, "network/index.html")
 
-
 def login_view(request):
     if request.method == "POST":
 
@@ -180,68 +179,6 @@ def follow_user(request, username):
         # Follow if not already following
         Follow.objects.create(follower=follower, following=user_to_follow)
         return JsonResponse({"message": "Followed successfully."}, status=201)
-    
-    return JsonResponse({"error": "POST request required."}, status=400)
-
-# @login_required
-# def following_posts(request):
-#     # Get the list of users that the current user is following
-#     current_user = request.user
-#     following_users = current_user.following.all()  # Assuming there's a related_name 'following' in your user model
-
-#     # Get the posts from those users
-#     posts = Post.objects.filter(user__in=following_users).order_by('-timestamp')
-
-#     # Format the post data for JSON response
-#     post_list = [{
-#         'id': post.id,
-#         'user': post.user.username,
-#         'content': post.content,
-#         'timestamp': post.timestamp,
-#         'like_count': post.like_count,
-#         'is_liked': post.likes.filter(id=current_user.id).exists(),
-#         'is_owner': post.user == current_user
-#     } for post in posts]
-
-#     return JsonResponse({'posts': post_list})
-
-# @login_required
-# def following_posts(request):
-#     try:
-#         # Get the current logged-in user
-#         current_user = request.user
-        
-#         # Get the list of users the current user is following
-#         following_users = current_user.following.all()
-        
-#         # Log for debugging
-#         print(f"Following users: {following_users}")
-#         print('finding user ok')
-
-#         # Get the posts from those users
-#         posts = Post.objects.filter(user__in=following_users).order_by('-timestamp')
-#         print('finding post ok')
-#         # Log for debugging
-#         print(f"Fetched posts: {posts}")
-
-#         # Prepare the posts data for the response
-#         post_list = [{
-#             'id': post.id,
-#             'user': post.user.username,
-#             'content': post.content,
-#             'timestamp': post.timestamp,
-#             'like_count': post.like_count,
-#             'is_liked': post.likes.filter(id=current_user.id).exists(),
-#             'is_owner': post.user == current_user
-#         } for post in posts]
-#         print('appending post ok')
-
-#         # Return the JSON response
-#         return JsonResponse({'posts': post_list})
-    
-#     except Exception as e:
-#         # Catch any exceptions and return a JSON error response
-#         return JsonResponse({'error': str(e)}, status=500)
 
 @login_required
 def following_posts(request):
@@ -264,3 +201,4 @@ def following_posts(request):
     } for post in posts]
 
     return JsonResponse({'posts': post_list})
+

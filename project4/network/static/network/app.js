@@ -1,10 +1,30 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Get the logged-in user's username
-    const profileLink = document.querySelector('#profileName');
-    const loggedInUsername = profileLink.getAttribute('data-username'); // Retrieve username from data-username attribute
-    profileLink.addEventListener('click', () => showProfile(loggedInUsername));
+    try {
+        // Try to get the profile link element
+        const profileLink = document.querySelector('#profileName');
 
-    document.querySelector('#newPost').addEventListener('click', () => postNew());
+        // If profileLink is found, proceed with retrieving the username and adding event listener
+        if (profileLink) {
+            const loggedInUsername = profileLink.getAttribute('data-username');
+            profileLink.addEventListener('click', () => showProfile(loggedInUsername));
+        } else {
+            console.log('No logged-in user');
+        }
+    } catch (error) {
+        // Catch any errors that occur and log the error message
+        console.error('Error while accessing profile link:', error);
+    }
+
+    // Add event listeners for other buttons
+    document.querySelector('#all-posts-btn').addEventListener('click', function() {
+        // Clear the body content before fetching new posts
+        document.getElementById('body').innerHTML = '';
+        
+        // Fetch and display all posts when "All Posts" button is clicked
+        fetchingPosts();
+    });
+
+    document.querySelector('#new-post').addEventListener('click', () => postNew());
     document.querySelector('#following').addEventListener('click', () => showFollowing());
 
     // Fetch posts when the page loads
@@ -73,6 +93,7 @@ function appendPost(post, container = null) {
     `;
 
     const postDiv = document.createElement('div');
+    postDiv.classList.add('post-animation');
     postDiv.innerHTML = postHtml;
 
     container.appendChild(postDiv); // Append to the provided container
@@ -193,16 +214,16 @@ function showProfile(username) {
                 <div class="card-body">
                     <h2 class="card-title">${profile.user.username}</h2>
                     <p>Email: ${profile.user.email}</p>
-                    <p>Followers: ${profile.followers_count}</p>
+                    <p id="follower-count">Followers: ${profile.followers_count}</p>
                     <p>Following: ${profile.following_count}</p>
                 </div>
             </div>
         `;
-
         const profileContainer = document.createElement('div');
+        profileContainer.classList.add('slide-in-left');
         profileContainer.innerHTML = profileHtml;
 
-        // Only show the follow/unfollow button if the profile is not the current user's
+        // Show follow/unfollow button if it's not the current user's profile
         if (profile.user.username !== profile.current_user) {  
             const followButtonHtml = `
                 <button id="follow-button" class="btn btn-${profile.is_following ? 'danger' : 'success'}">
@@ -211,10 +232,13 @@ function showProfile(username) {
             `;
             profileContainer.querySelector('.card-body').insertAdjacentHTML('beforeend', followButtonHtml);
 
-            // Safely attach the event listener to the follow button
-            const followButton = document.getElementById('follow-button');
-            if (followButton) {  // Check if the button exists before adding an event listener
+            console.log('done creating followbutton');
+            // Attach event listener after the button is added to DOM
+            const followButton = profileContainer.querySelector('#follow-button');
+            if (followButton) {
+                console.log('followbutton exists');
                 followButton.addEventListener('click', () => {
+                    console.log('toggle is clicked');
                     toggleFollow(username);
                 });
             }
@@ -243,16 +267,26 @@ function toggleFollow(username) {
     .then(response => response.json())
     .then(result => {
         console.log("Follow/Unfollow response:", result);
-        // Update the button text and style based on the result
+
+        // Update the button text and style
         const followButton = document.getElementById('follow-button');
+        const followerCount = document.getElementById('follower-count');
+        let currentCount = parseInt(followerCount.innerText.split(': ')[1]); // Extract current follower count
+
         if (followButton.innerText === 'Follow') {
             followButton.innerText = 'Unfollow';
             followButton.classList.remove('btn-success');
             followButton.classList.add('btn-danger');
+
+            // Increment follower count after following
+            followerCount.innerText = `Followers: ${currentCount + 1}`;
         } else {
             followButton.innerText = 'Follow';
             followButton.classList.remove('btn-danger');
             followButton.classList.add('btn-success');
+
+            // Decrement follower count after unfollowing
+            followerCount.innerText = `Followers: ${currentCount - 1}`;
         }
     })
     .catch(error => console.error('Error during follow/unfollow action:', error));
@@ -272,6 +306,7 @@ function postNew() {
         </form>
     `;
     postFormContainer.innerHTML = formHtml;
+    postFormContainer.classList.add('fade-in');
     body.appendChild(postFormContainer);
     postSubmittion();
 }
@@ -347,8 +382,26 @@ function showFollowing() {
     .catch(error => console.error('Error loading following posts:', error));
 }
 
-// Following user's posts view needed
-// Post animations needed
+// Function to create and display an alert message
+function showAlert(message, type = 'danger') {
+    const alertElement = document.createElement('div');
+    alertElement.classList.add('alert', `alert-${type}`);
+  
+    alertElement.textContent = message;
+  
+  
+    // Find the main content container
+    const mainContent = document.getElementById('body');
+  
+    // Append the alert message to the beginning of the main content
+    mainContent.insertAdjacentElement('afterbegin', alertElement);
+  
+    // Automatically remove the alert after a delay (e.g., 3 seconds)
+    setTimeout(() => {
+      alertElement.remove();
+    }, 3000);
+  }
+
 // Detail css needed
 // Message alert needed
 // URL for user to go back and forth is needed
