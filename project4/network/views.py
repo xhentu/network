@@ -234,4 +234,3 @@ def following_posts(request):
         'total_pages': paginator.num_pages,
         'current_page': page_obj.number
     })
-

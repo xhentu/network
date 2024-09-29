@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function fetchingPosts(page = 1) {
+    history.pushState({ view: 'posts', page: page }, "", `/posts?page=${page}`);
     fetch(`/posts?page=${page}`, {
         method: 'GET'
     })
@@ -195,6 +196,7 @@ function toggleLike(event) {
 }
 
 function showProfile(username, page = 1) {
+    history.pushState({ view: 'profile', username: username, page: page }, "", `/profile/${username}?page=${page}`);
     // Clear previous content
     document.getElementById('body').innerHTML = '';
 
@@ -361,6 +363,7 @@ function getCookie(name) {
 }
 
 function showFollowing(page = 1) {
+    history.pushState({ view: 'following', page: page }, "", `/following?page=${page}`);
     // Clear previous content
     document.getElementById('body').innerHTML = '';
 
@@ -440,9 +443,19 @@ function createPaginationButtons(hasPrevious, hasNext, currentPage, callback) {
     return paginationContainer;
 }
 
+// Handle browser's back/forward buttons
+window.onpopstate = function(event) {
+    if (event.state) {
+        if (event.state.view === 'profile') {
+            showProfile(event.state.username, event.state.page);
+        } else if (event.state.view === 'following') {
+            showFollowing(event.state.page);
+        } else if (event.state.view === 'posts') {
+            fetchingPosts(event.state.page);
+        }
+    }
+};
 
-
-// Detail css needed
 // Message alert needed
 // URL for user to go back and forth is needed
 // Revision needed
