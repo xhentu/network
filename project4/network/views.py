@@ -5,6 +5,7 @@ from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from .models import User, Post, Follow, Like
 import json
 
@@ -71,7 +72,13 @@ def posts(request):
         post.save()
         return JsonResponse({"id": post.id, "content": post.content, "timestamp": post.timestamp, "user": post.user.username}, status=201)
     elif request.method == "GET":
-        posts = Post.objects.all().order_by("-timestamp")
+        all_posts = Post.objects.all().order_by("-timestamp")
+
+        # Implement pagination
+        page_number = request.GET.get('page', 1)  # Default to page 1 if not provided
+        paginator = Paginator(all_posts, 10)  # Show 10 posts per page
+
+        page_obj = paginator.get_page(page_number)
         posts_list = [{
             'id': post.id,
             'user': post.user.username,
@@ -79,12 +86,16 @@ def posts(request):
             'timestamp': post.timestamp,
             'like_count': post.likes.count(),
             'is_liked': request.user in post.likes.all(),
-            'is_owner': post.user == request.user  # Add ownership field
-        } for post in posts]
+            'is_owner': post.user == request.user  # Ownership field
+        } for post in page_obj]
 
         return JsonResponse({
             'posts': posts_list,
-            'current_user': request.user.username  # Add the logged-in user info here
+            'current_user': request.user.username,
+            'has_next': page_obj.has_next(),
+            'has_previous': page_obj.has_previous(),
+            'total_pages': paginator.num_pages,
+            'current_page': page_obj.number
         })
 
 @login_required
@@ -109,11 +120,19 @@ def edit_post(request, post_id):
 @login_required
 def profile(request, username):
     user = get_object_or_404(User, username=username)
-    posts = user.posts.all().order_by("-timestamp")
+    user_posts = user.posts.all().order_by("-timestamp")
     is_following = Follow.objects.filter(follower=request.user, following=user).exists()
 
+    # Implement pagination
+    page_number = request.GET.get('page', 1)  # Default to page 1 if not provided
+    paginator = Paginator(user_posts, 10)  # Show 10 posts per page
+    page_obj = paginator.get_page(page_number)
+
     return JsonResponse({
-        "user": {"username": user.username, "email": user.email},
+        "user": {
+            "username": user.username,
+            "email": user.email
+        },
         "posts": [{
             "id": post.id,
             "content": post.content,
@@ -121,11 +140,15 @@ def profile(request, username):
             "like_count": post.likes.count(),
             'user': post.user.username,
             'is_owner': post.user == request.user,  # Already checking ownership
-        } for post in posts],
+        } for post in page_obj],
         "is_following": is_following,
         "followers_count": user.followers.count(),
         "following_count": user.following.count(),
-        "current_user": request.user.username  # Add the logged-in user's username here
+        "current_user": request.user.username,  # Add the logged-in user's username here
+        "has_next": page_obj.has_next(),
+        "has_previous": page_obj.has_previous(),
+        "total_pages": paginator.num_pages,
+        "current_page": page_obj.number
     })
 
 @login_required
@@ -187,18 +210,28 @@ def following_posts(request):
     following_users = Follow.objects.filter(follower=current_user).values_list('following', flat=True)
 
     # Get the posts from those users
-    posts = Post.objects.filter(user__in=following_users).order_by('-timestamp')
+    following_posts = Post.objects.filter(user__in=following_users).order_by('-timestamp')
 
-    # Format the post data for JSON response
+    # Implement pagination
+    page_number = request.GET.get('page', 1)  # Default to page 1 if not provided
+    paginator = Paginator(following_posts, 2)  # Show 10 posts per page
+
+    page_obj = paginator.get_page(page_number)
     post_list = [{
         'id': post.id,
         'user': post.user.username,
         'content': post.content,
         'timestamp': post.timestamp,
-        'like_count': post.like_count(),
+        'like_count': post.likes.count(),
         'is_liked': post.likes.filter(id=current_user.id).exists(),
         'is_owner': post.user == current_user
-    } for post in posts]
+    } for post in page_obj]
 
-    return JsonResponse({'posts': post_list})
+    return JsonResponse({
+        'posts': post_list,
+        'has_next': page_obj.has_next(),
+        'has_previous': page_obj.has_previous(),
+        'total_pages': paginator.num_pages,
+        'current_page': page_obj.number
+    })
 

@@ -31,32 +31,30 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchingPosts();
 });
 
-function fetchingPosts() {
-    const mainContent = document.getElementById('body');
-    
-    // Fetch '/posts' route with 'GET' method
-    fetch('/posts', {
+function fetchingPosts(page = 1) {
+    fetch(`/posts?page=${page}`, {
         method: 'GET'
     })
-    // Parse json data
     .then(response => response.json())
-    // Extract the posts array from the JSON object
     .then(data => {
-        console.log("Received GET response (posts):", data.posts); 
-        
-        // Creating main post Container and append by repeatedly calling function using forEach
-        const postContainer = document.createElement('div');
-        postContainer.classList = "m-3 p-2";
+        const mainContent = document.getElementById('body');
+        mainContent.innerHTML = '';
 
-        // Loop through the posts array and append each post
+        // Loop through and display posts
         data.posts.forEach(post => {
-            appendPost(post, postContainer); // Append each post
+            appendPost(post, mainContent);  // Use appendPost for rendering
         });
-        
-        // Append the postContainer to the main content div
-        mainContent.insertAdjacentElement('afterbegin', postContainer); // Insert posts after form
+
+        // Create pagination buttons
+        const paginationContainer = createPaginationButtons(
+            data.has_previous, 
+            data.has_next, 
+            data.current_page, 
+            fetchingPosts // Pass fetchingPosts as the callback
+        );
+        mainContent.appendChild(paginationContainer);
     })
-    .catch(error => console.error('Error:', error));
+    .catch(error => console.error('Error fetching posts:', error));
 }
 
 function appendPost(post, container = null) {
@@ -72,11 +70,11 @@ function appendPost(post, container = null) {
     const likeIcon = post.is_liked ? '💔' : '❤️';
 
     const postHtml = `
-        <div class="card mb-3">
+        <div class="card mb-3 post-container">
             <div class="card-body">
-                <h5 class="card-title post-username" data-username="${post.user}">
+                <h5 class="card-title post-username text-success" data-username="${post.user}">
                     <strong>${post.user}</strong>
-                    ${post.is_owner ? `<span class="edit-btn" data-post-id="${post.id}" style="float:right; cursor:pointer;">✏️</span>` : ''}
+                    ${post.is_owner ? `<span class="edit-btn" data-post-id="${post.id}" style="float:right; cursor:pointer;"><i class="fas fa-edit text-success"></i></span>` : ''}
                 </h5>
                 <p class="card-text">${post.content}</p>
                 <p class="card-text">
@@ -196,12 +194,12 @@ function toggleLike(event) {
     });
 }
 
-function showProfile(username) {
+function showProfile(username, page = 1) {
     // Clear previous content
     document.getElementById('body').innerHTML = '';
 
-    // Fetch profile data
-    fetch(`/profile/${username}`, {
+    // Fetch profile data with pagination
+    fetch(`/profile/${username}?page=${page}`, {
         method: 'GET'
     })
     .then(response => response.json())
@@ -210,7 +208,7 @@ function showProfile(username) {
 
         // Create profile header
         const profileHtml = `
-            <div class="profile-header card mb-3">
+            <div class="profile-header bg-success card mb-3 post-container">
                 <div class="card-body">
                     <h2 class="card-title">${profile.user.username}</h2>
                     <p>Email: ${profile.user.email}</p>
@@ -226,19 +224,16 @@ function showProfile(username) {
         // Show follow/unfollow button if it's not the current user's profile
         if (profile.user.username !== profile.current_user) {  
             const followButtonHtml = `
-                <button id="follow-button" class="btn btn-${profile.is_following ? 'danger' : 'success'}">
+                <button id="follow-button" class="btn btn-${profile.is_following ? 'dark' : 'light'}">
                     ${profile.is_following ? 'Unfollow' : 'Follow'}
                 </button>
             `;
             profileContainer.querySelector('.card-body').insertAdjacentHTML('beforeend', followButtonHtml);
 
-            console.log('done creating followbutton');
             // Attach event listener after the button is added to DOM
             const followButton = profileContainer.querySelector('#follow-button');
             if (followButton) {
-                console.log('followbutton exists');
                 followButton.addEventListener('click', () => {
-                    console.log('toggle is clicked');
                     toggleFollow(username);
                 });
             }
@@ -246,12 +241,22 @@ function showProfile(username) {
 
         // Add user's posts to profile page
         profile.posts.forEach(post => {
-            post.user = profile.user.username;
+            post.user = profile.user.username; // Ensure post shows correct username
             appendPost(post, profileContainer); // Use the existing appendPost function
         });
 
         // Insert the profile data into the main content area
-        document.getElementById('body').appendChild(profileContainer);
+        const mainContent = document.getElementById('body');
+        mainContent.appendChild(profileContainer);
+
+        // Create pagination buttons
+        const paginationContainer = createPaginationButtons(
+            profile.has_previous, 
+            profile.has_next, 
+            profile.current_page, 
+            (newPage) => showProfile(username, newPage)  // Use showProfile with the username and new page
+        );
+        mainContent.appendChild(paginationContainer);
     })
     .catch(error => console.error('Error loading profile:', error));
 }
@@ -275,15 +280,15 @@ function toggleFollow(username) {
 
         if (followButton.innerText === 'Follow') {
             followButton.innerText = 'Unfollow';
-            followButton.classList.remove('btn-success');
-            followButton.classList.add('btn-danger');
+            followButton.classList.remove('btn-light');
+            followButton.classList.add('btn-dark');
 
             // Increment follower count after following
             followerCount.innerText = `Followers: ${currentCount + 1}`;
         } else {
             followButton.innerText = 'Follow';
-            followButton.classList.remove('btn-danger');
-            followButton.classList.add('btn-success');
+            followButton.classList.remove('btn-dark');
+            followButton.classList.add('btn-light');
 
             // Decrement follower count after unfollowing
             followerCount.innerText = `Followers: ${currentCount - 1}`;
@@ -299,10 +304,10 @@ function postNew() {
     // Creating post form
     const postFormContainer = document.createElement('div');
     const formHtml = `
-        <form id="post-form">
+        <form id="post-form" class='post-container'>
         <label for="post-content" class="form-label">What's on your mind?</label>
             <textarea id="post-content" class="form-control" placeholder="Write something..." required></textarea>
-            <button type="submit" class="btn btn-primary mt-2">Post</button>
+            <button type="submit" class="btn btn-success mt-2">Post</button>
         </form>
     `;
     postFormContainer.innerHTML = formHtml;
@@ -355,12 +360,12 @@ function getCookie(name) {
     return cookieValue;
 }
 
-function showFollowing() {
+function showFollowing(page = 1) {
     // Clear previous content
     document.getElementById('body').innerHTML = '';
 
-    // Fetch following posts
-    fetch('/following', {
+    // Fetch following posts with pagination
+    fetch(`/following?page=${page}`, {
         method: 'GET'
     })
     .then(response => response.json())
@@ -378,6 +383,17 @@ function showFollowing() {
 
         // Append the container to the body
         document.getElementById('body').appendChild(postContainer);
+
+        // Create pagination buttons using the reusable function
+        const paginationContainer = createPaginationButtons(
+            data.has_previous, 
+            data.has_next, 
+            data.current_page, 
+            showFollowing // Pass showFollowing as the callback for pagination
+        );
+
+        // Append pagination buttons to the body
+        document.getElementById('body').appendChild(paginationContainer);
     })
     .catch(error => console.error('Error loading following posts:', error));
 }
@@ -388,7 +404,6 @@ function showAlert(message, type = 'danger') {
     alertElement.classList.add('alert', `alert-${type}`);
   
     alertElement.textContent = message;
-  
   
     // Find the main content container
     const mainContent = document.getElementById('body');
@@ -401,6 +416,31 @@ function showAlert(message, type = 'danger') {
       alertElement.remove();
     }, 3000);
   }
+
+function createPaginationButtons(hasPrevious, hasNext, currentPage, callback) {
+    const paginationContainer = document.createElement('div');
+    paginationContainer.classList.add('pagination-container', 'mt-3');
+
+    if (hasPrevious) {
+        const prevButton = document.createElement('button');
+        prevButton.textContent = "Previous";
+        prevButton.classList.add('btn', 'btn-success', 'me-2');
+        prevButton.addEventListener('click', () => callback(currentPage - 1));
+        paginationContainer.appendChild(prevButton);
+    }
+
+    if (hasNext) {
+        const nextButton = document.createElement('button');
+        nextButton.textContent = "Next";
+        nextButton.classList.add('btn', 'btn-success');
+        nextButton.addEventListener('click', () => callback(currentPage + 1));
+        paginationContainer.appendChild(nextButton);
+    }
+
+    return paginationContainer;
+}
+
+
 
 // Detail css needed
 // Message alert needed

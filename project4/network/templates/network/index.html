@@ -2,6 +2,12 @@
 {% load static %}
 
 {% block body %}
+
+{% if message %}
+    <div class="alert alert-danger" role="alert">
+        {{ message }}
+    </div>
+{% endif %}
 <div class="container mt-3" id="body">
 
 </div>
